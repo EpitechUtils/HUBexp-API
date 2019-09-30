@@ -1,0 +1,11 @@
+.idea/*
+out/
+go_build_main_go
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+go.sum
