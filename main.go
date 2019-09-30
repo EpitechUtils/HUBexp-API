@@ -1,18 +1,19 @@
 package main
 
 import (
-	"github.com/gin-gonic/gin"
-	"net/http"
+	"github.com/kataras/iris"
+	"github.com/kataras/iris/middleware/logger"
+	"github.com/kataras/iris/middleware/recover"
 )
 
 func main() {
-	router := gin.Default()
-
-	router.GET("/", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{
-			"Hello": "Sailor",
-		})
+	router := iris.New()
+	router.Use(logger.New())
+	router.Use(recover.New())
+	router.Get("/", func(c iris.Context) {
+		c.JSON(iris.Map{"hello": "sailor"})
 	})
 
-	router.Run(":8080")
+	router.Run(iris.Addr(":8080"), iris.WithoutServerError(iris.ErrServerClosed))
 }
+ 
