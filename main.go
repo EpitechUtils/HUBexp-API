@@ -1,69 +1,91 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"github.com/kataras/iris"
 	"github.com/kataras/iris/middleware/logger"
 	"github.com/kataras/iris/middleware/recover"
-	"io/ioutil"
+	"github.com/lucasGras/HUBexp-API.git/analysis"
 	"net/http"
+	"strings"
 )
 
 const autologUrl = "https://intra.epitech.eu/auth-b4076976be4815f632794fd00a5a6c69d1655939"
+const currentLogin = "lucas.gras@epitech.eu"
 
-type Activity struct {
-	Title     string
-	TypeTitle string
-}
-
-func doRequest() []iris.Map {
-
-	res, _ := http.Get(autologUrl + "/module/2019/B-MOO-500/NCE-5-1/?format=json")
-
-	body := make(iris.Map)
-	content, _ := ioutil.ReadAll(res.Body)
-	_ = json.Unmarshal(content, &body)
-
-	activities, ok := body["activites"]
-
-	if !ok {
-		/*
-			for k, v := range body {
-				if k == "activites" {
-					activities = v
-				}
-			}
-		*/
-		panic("Undefined 'activites' key")
-	}
-
-	switch x := activities.(type) {
-	case []interface{}:
-		fmt.Printf("got %T\n", x)
-		for _, e := range x {
-			events := e.(map[string]interface{})["events"]
-			eventsArray := events.([]interface{})
-
-			fmt.Print("Check ", e.(map[string]interface{})["title"], " : ")
-
-			for _, value := range eventsArray {
-				if value.(map[string]interface{})["user_status"] == "present" {
-					fmt.Print("->Present")
-				}
-			}
-			fmt.Print("\n")
+/**
+Check if a student is an assistant
+*/
+func isAnAssistant(login string, comp []analysis.Assistant) bool {
+	for _, v := range comp {
+		if strings.Compare(login, v.Login) == 0 {
+			return true
 		}
-	default:
-		fmt.Printf("I don't know how to handle %T\n", activities)
 	}
-
-	return activities.([]iris.Map)
+	return false
 }
 
-func processActivities(data iris.Map) (r iris.Map) {
+/**
+create API response
+matching is working with:
+	- Talk / Meetup
+	- Workshop
+	- Hackaton
 
-	return
+TODO: Experience and HUB Project (variable) + absent or canceled (minus)
+*/
+func createApiResponse(module analysis.ModuleResp) iris.Map {
+	// total exp of student
+	var exp int
+
+	// matching array for activity titles
+	var matching = map[string]int{
+		"Conference_par": 1,
+		"Conference_org": 4,
+		"Workshop_par":   3,
+		"Workshop_org":   10,
+		"Rush_par":       6,
+	}
+
+	// Process data and compute exp sum
+	for _, act := range module.Activities {
+		for _, eve := range act.Events {
+
+			// If student wasn't register and wasn't the organizer, skip it
+			if len(eve.Register) == 0 && !isAnAssistant(currentLogin, eve.Assistants) {
+				continue
+			}
+
+			//fmt.Print("Type [" + act.Type + "] : " + act.Title)
+
+			// If the student have organized the session
+			if isAnAssistant(currentLogin, eve.Assistants) {
+				exp += matching[act.Type+"_org"]
+				//fmt.Print(" : ORG\n")
+			} else { // Or the student is just a participant
+				exp += matching[act.Type+"_par"]
+				//fmt.Print(" : PART\n")
+			}
+		}
+	}
+
+	//fmt.Print("Total exp: ", exp, "\n")
+
+	return iris.Map{"exp": exp}
+}
+
+func doRequest() iris.Map {
+
+	// Make http request to intranet
+	res, _ := http.Get(autologUrl + "/module/2018/B-INN-000/NCE-0-1/?format=json")
+
+	// Process JSON data
+	module := analysis.DoUnmarshall(res)
+
+	// Create API response based on JSON data
+	response := createApiResponse(module)
+
+	return response
 }
 
 func main() {
@@ -73,11 +95,9 @@ func main() {
 	router.Get("/", func(c iris.Context) {
 		c.JSON(iris.Map{"hello": "sailor"})
 	})
-	/*
-		router.Get("/exp", func(c iris.Context) {
-			c.JSON(doRequest())
-		})
-	*/
+	router.Get("/exp", func(c iris.Context) {
+		c.JSON(doRequest())
+	})
 	doRequest()
 	//	router.Run(iris.Addr(":8080"), iris.WithoutServerError(iris.ErrServerClosed))
 }
