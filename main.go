@@ -1,13 +1,13 @@
 package main
 
 import (
-	"fmt"
 	"github.com/kataras/iris"
 	"github.com/kataras/iris/middleware/logger"
 	"github.com/kataras/iris/middleware/recover"
 	"github.com/lucasGras/HUBexp-API.git/analysis"
 	"net/http"
 	"strings"
+	"fmt"
 )
 
 const autologUrl = "https://intra.epitech.eu/auth-b4076976be4815f632794fd00a5a6c69d1655939"
@@ -56,7 +56,7 @@ func createApiResponse(module analysis.ModuleResp) iris.Map {
 				continue
 			}
 
-			//fmt.Print("Type [" + act.Type + "] : " + act.Title)
+			fmt.Print("Type [" + act.Type + "] : " + act.Title + "\n")
 
 			// If the student have organized the session
 			if isAnAssistant(currentLogin, eve.Assistants) {
@@ -77,7 +77,7 @@ func createApiResponse(module analysis.ModuleResp) iris.Map {
 func doRequest() iris.Map {
 
 	// Make http request to intranet
-	res, _ := http.Get(autologUrl + "/module/2018/B-INN-000/NCE-0-1/?format=json")
+	res, _ := http.Get(autologUrl + "/module/2019/B-INN-000/NCE-0-1/?format=json")
 
 	// Process JSON data
 	module := analysis.DoUnmarshall(res)
@@ -98,6 +98,5 @@ func main() {
 	router.Get("/exp", func(c iris.Context) {
 		c.JSON(doRequest())
 	})
-	doRequest()
-	//	router.Run(iris.Addr(":8080"), iris.WithoutServerError(iris.ErrServerClosed))
+	router.Run(iris.Addr(":8080"), iris.WithoutServerError(iris.ErrServerClosed))
 }
